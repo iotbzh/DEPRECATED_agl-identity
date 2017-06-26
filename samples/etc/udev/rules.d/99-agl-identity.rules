@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ACTION=="add",    RUN+="/bin/bash ~/agl-identity/udev-script.sh add '%p'"
+SUBSYSTEM=="usb", ACTION=="remove", RUN+="/bin/bash ~/agl-identity/udev-script.sh remove '%p'"
