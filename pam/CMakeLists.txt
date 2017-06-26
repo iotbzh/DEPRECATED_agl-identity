@@ -1,0 +1,1 @@
+add_library(agl-identity-usbstick-pam SHARED )
