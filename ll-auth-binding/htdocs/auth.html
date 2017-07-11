@@ -1,0 +1,28 @@
+<html>
+    <head>
+        <title>ll-auth-binding test</title>
+        <script type="text/javascript" src="AFB-websock.js"></script>
+        <script type="text/javascript" src="IdentityBinding.js"></script>
+    </head>
+    
+    <body onload="init();">
+        <h1>Identity Binding</h1>
+        <button id="connected" onclick="init()">Binder WS Fail</button>
+        <br>
+        <ol>
+            <!--
+            <li><button onclick="callbinder('ll-auth','login', {})">login</button></li>
+            <li><button onclick="callbinder('ll-auth','logout', {})">logout</button></li>
+            -->
+            <li><button onclick="callbinder('ll-auth','getuser', {})">get user</button></li>
+        </ol>
+        <br>
+        <div id="main" style="visibility:hidden">
+            <ol>
+                <li>Question <div id="question"></div></li>
+                <li>Response <div id="output"></div></li>
+                <li>Events: <div id="outevt"></div>
+            </ol>
+        </div>
+    </body>
+</html>
