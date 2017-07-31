@@ -64,7 +64,12 @@ set (PKG_REQUIRED_LIST
 	libsystemd>=222
 	afb-daemon
 	libmicrohttpd>=0.9.55
+	libudev
 )
+
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
 
 # Static constante definition
 # -----------------------------

@@ -14,7 +14,7 @@ set_target_properties(ll-auth-binding PROPERTIES
 	LINK_FLAGS ${BINDINGS_LINK_FLAG}
 	OUTPUT_NAME ${TARGET_NAME})
 
-target_link_libraries(ll-auth-binding ${link_libraries} ${PAM_LIBRARY} ${PAM_MISC_LIBRARY})
+target_link_libraries(ll-auth-binding ${link_libraries} ${PAM_LIBRARY} ${PAM_MISC_LIBRARY} Threads::Threads)
 
 install(
 	TARGETS ll-auth-binding
