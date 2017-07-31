@@ -1,7 +1,7 @@
 ###########################################################################
 # Copyright 2015, 2016, 2017 IoT.bzh
 #
-# author: Fulup Ar Foll <fulup@iot.bzh>
+# author: Loïc Collignon <collignon.loic@iot.bzh>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ set(PROJECT_LANGUAGES,"C")
 
 # Where are stored default templates files from submodule or subtree app-templates in your project tree
 # relative to the root project directory
-set(PROJECT_APP_TEMPLATES_DIR "conf.d/app-templates")
+set(PROJECT_APP_TEMPLATES_DIR "../conf.d/app-templates")
 
 # Where are stored your external libraries for your project. This is 3rd party library that you don't maintain
 # but used and must be built and linked.
