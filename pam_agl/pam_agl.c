@@ -15,6 +15,8 @@
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>
 
+#define DATABASE_FILE "/etc/agl/keys.json"
+
 #define BLOCK_SIZE 4096
 typedef struct header_
 {
@@ -25,6 +27,37 @@ typedef struct header_
 int is_valid_mn(const char* v)
 {
 	return v && v[0] == 'I' && v[1] == 'D' && v[2] == 'K' && v[3] == 'Y';
+}
+
+char* get_file_content(const char* path)
+{
+	char* buffer;
+	long length;
+	FILE* f;
+	
+	buffer = NULL;
+	length = 0;
+	
+	f = fopen(path, "rb");
+	if (f)
+	{
+		fseek(f, 0, SEEK_END);
+		length = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		buffer = malloc(length + 1);
+		if (buffer)
+		{
+			if (fread (buffer, 1, length, f) != length)
+			{
+				free(buffer);
+				buffer = NULL;
+			}
+			else buffer[length] = 0;
+		}
+		fclose (f);
+	}
+	
+	return buffer;
 }
 
 void pam_putenv_ex(pam_handle_t* pamh, const char* name, const char* value)
@@ -40,77 +73,120 @@ void pam_putenv_ex(pam_handle_t* pamh, const char* name, const char* value)
 	pam_putenv(pamh, result);
 }
 
-int check_device(pam_handle_t* pamh, const char* device)
+int read_device(const char* device, char** idkey)
 {
-	printf("[PAM DEBUG]: check_device %s...\n", device);
-	int fd = open(device, O_RDONLY);
+	int fd;
+	ssize_t sz;
+	header h;
+		
+	printf("[PAM DEBUG] check_device %s...\n", device);
+	fd = open(device, O_RDONLY);
 	if (fd == -1)
 	{
-		printf("[PAM DEBUG]: Failed to open the device %s!\n", device);
+		printf("[PAM DEBUG] Failed to open the device %s!\n", device);
 		return PAM_SERVICE_ERR;
 	}
 
-	header h;
-	ssize_t sz = read(fd, &h, sizeof(header));
+	sz = read(fd, &h, sizeof(header));
 	if (sz != sizeof(header) || !is_valid_mn(h.mn) || h.size < 1) { close(fd); printf("[PAM DEBUG]: bad header!\n"); return PAM_SERVICE_ERR; }
-	printf("[PAM DEBUG]: data size=%d\n", h.size);
+	printf("[PAM DEBUG]: data size=%lu\n", h.size);
 
-	char* idkey = (char*)malloc(h.size + 1);
-	if (!idkey) { close(fd); printf("[PAM DEBUG] Bad alloc!\n"); return PAM_SERVICE_ERR; }
+	*idkey = (char*)malloc(h.size + 1);
+	if (!*idkey) { close(fd); printf("[PAM DEBUG] Bad alloc!\n"); return PAM_SERVICE_ERR; }
 
-	memset(idkey, 0, h.size + 1);
-	size_t count = read(fd, idkey, h.size);
+	memset(*idkey, 0, h.size + 1);
+	sz = read(fd, *idkey, h.size);
 	close(fd);
+	if (sz != h.size) { free(idkey); printf("[PAM DEBUG] Bad data read!\n"); return PAM_SERVICE_ERR; }
+	return PAM_SUCCESS;
+}
 
-	if (count != h.size) { free(idkey); printf("[PAM DEBUG] Bad data read!\n"); return PAM_SERVICE_ERR; }
+int authenticate(pam_handle_t* pamh, const char* uuid)
+{
+	char* file_content;
+	struct json_object* database;
+	struct json_object* key;
+
+	file_content = get_file_content(DATABASE_FILE);
+	if (!file_content)
+	{
+		printf("[PAM DEBUG] Failed to read database file (%s)\n", DATABASE_FILE);
+		return PAM_SERVICE_ERR;
+	}
+	
+	database = json_tokener_parse(file_content);
+	if (!database)
+	{
+		printf("[PAM DEBUG] Failed to parse the database\n");
+		return PAM_SERVICE_ERR;
+	}
+	
+	if (json_object_object_get_ex(database, uuid, &key))
+	{
+		printf("[PAM] Key found!\n");
+		printf("[PAM DEBUG] pam_set_item(\"%s\")\n", uuid);
+		pam_set_item(pamh, PAM_USER, uuid);
+			
+		const char* pam_authtok;
+		if (pam_get_item(pamh, PAM_AUTHTOK, (const void**)&pam_authtok) == PAM_SUCCESS && !pam_authtok)
+			pam_set_item(pamh, PAM_AUTHTOK, uuid);
+		
+		json_object_put(database);
+		free(file_content);
+		return PAM_SUCCESS;
+	}
+	
+	printf("[PAM] Key not found!\n");
+	free(file_content);
+	if (database) json_object_put(database);
+	return PAM_AUTH_ERR;
+}
+
+int check_device(pam_handle_t* pamh, const char* device)
+{
+	char* idkey;
+	int ret;
+	
+	ret = read_device(device, &idkey);
+	if (ret != PAM_SUCCESS) return ret;
+	
 	printf("[PAM DEBUG] Data read:\n%s\n", idkey);
-
+	
 	json_object* idkey_json = json_tokener_parse(idkey);
-	if (!idkey_json) { free(idkey); printf("[PAM DEBUG] Failed to parse json data!\n"); return PAM_SERVICE_ERR; }
+	if (!idkey_json)
+	{
+		free(idkey);
+		printf("[PAM DEBUG] Failed to parse json data!\n");
+		return PAM_SERVICE_ERR;
+	}
 
 	json_object* uuid_json;
-	if(!json_object_object_get_ex(idkey_json, "uuid", &uuid_json)) { free(idkey); printf("[PAM DEBUG]: The json does not contains a valid uuid\n"); return PAM_SERVICE_ERR; }
+	if(!json_object_object_get_ex(idkey_json, "uuid", &uuid_json))
+	{
+		free(idkey);
+		printf("[PAM DEBUG] The json does not contains a valid uuid\n");
+		return PAM_SERVICE_ERR;
+	}
 
 	const char* uuid = json_object_get_string(uuid_json);
 	printf("[PAM DEBUG] uuid: %s\n", uuid);
-
-	// TODO: Check if the uuid is accepted
-	const char* const ids[] = {
-		"4f29e9ea-600a-11e7-8331-c70192ecfa55",
-		"13126524-6256-11e7-be33-3f4e4481a8c9",
-		NULL
-	};
-
-	int i = 0;
-	while(ids[i])
-	{
-		if (!strcmp(ids[i], uuid))
-		{
-			printf("[PAM DEBUG] pam_set_item(\"%s\")\n", uuid);
-			pam_set_item(pamh, PAM_USER, uuid);
-			
-			const char* pam_authtok;
-			if (pam_get_item(pamh, PAM_AUTHTOK, (const void**)&pam_authtok) == PAM_SUCCESS && !pam_authtok)
-				pam_set_item(pamh, PAM_AUTHTOK, uuid);
-
-			return PAM_SUCCESS;
-		}
-		++i;
-	}
 	
-	return PAM_AUTH_ERR;
+	ret = authenticate(pamh, uuid);
+	free(idkey);
+	json_object_put(idkey_json);
+	return ret;
 }
 
 void log_pam(const char* fname, int flags, int argc, const char** argv, const char* device)
 {
-	printf("[PAM DEBUG]: ---------- %s ----------\n", fname);
-	printf("[PAM DEBUG]: flags: %d\n", flags);
+	printf("[PAM DEBUG] ---------- %s ----------\n", fname);
+	printf("[PAM DEBUG] flags: %d\n", flags);
 	for(int i = 0; i < argc; ++i)
 	{
-		printf("[PAM DEBUG]: argv[%d]: %s\n", i, argv[i]);
+		printf("[PAM DEBUG] argv[%d]: %s\n", i, argv[i]);
 	}
-	printf("[PAM DEBUG]: device: %s\n", device);
-	printf("[PAM DEBUG]: ----------------------------------------\n");
+	printf("[PAM DEBUG] device: %s\n", device);
+	printf("[PAM DEBUG] ----------------------------------------\n");
 }
 
 /*!
