@@ -53,8 +53,24 @@
     }
 
     function gotevent(obj) {
-            console.log("gotevent:" + JSON.stringify(obj));
-            document.getElementById("outevt").innerHTML = (evtidx++) +": "+JSON.stringify(obj);
+        console.log("gotevent:" + JSON.stringify(obj));
+        document.getElementById("outevt").innerHTML = (evtidx++) +": "+JSON.stringify(obj);
+
+        document.getElementById("message").innerHTML = "";
+
+        if (obj.event == "ll-auth/login") {
+           document.getElementById("userid").innerHTML = obj.data.user;
+           document.getElementById("device").innerHTML = obj.data.device;
+        }
+
+        if (obj.event == "ll-auth/logout") {
+                document.getElementById("userid").innerHTML = "";
+                document.getElementById("device").innerHTML = "";
+        }
+
+        if (obj.event == "ll-auth/failed") {
+                document.getElementById("message").innerHTML = obj.data.message;
+        }
     }
 
     function send(message) {

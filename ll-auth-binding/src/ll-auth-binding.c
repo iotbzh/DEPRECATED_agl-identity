@@ -13,7 +13,7 @@ static struct pam_conv conv = { misc_conv, NULL };
 static char* current_device = NULL;
 static char* current_user = NULL;
 
-afb_event evt_login, evt_logout;
+afb_event evt_login, evt_logout, evt_failed;
 
 /// @brief API's verb 'login'. Try to login a user using a device
 /// @param[in] req The request object. Should contains a json with a "device" key.
@@ -28,6 +28,7 @@ static void verb_login(struct afb_req req)
 	{
 		AFB_ERROR("[login] the current user must be logged out first!");
 		afb_req_fail(req, "current user must be logged out first!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"A user is already logged in!\"}"));
 		return;
 	}
 
@@ -36,6 +37,7 @@ static void verb_login(struct afb_req req)
 	{
 		AFB_ERROR("[login] device must be provided!");
 		afb_req_fail(req, "device must be provided!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"device must be provided!\"}"));
 		return;
 	}
 
@@ -45,6 +47,7 @@ static void verb_login(struct afb_req req)
 	{
 		AFB_ERROR("PAM start failed!");
 		afb_req_fail(req, "PAM start failed!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"PAM start failed!\"}"));
 		return;
 	}
 
@@ -56,6 +59,7 @@ static void verb_login(struct afb_req req)
 		AFB_ERROR("PAM putenv failed!");
 		afb_req_fail(req, "PAM putenv failed!", NULL);
 		pam_end(pamh, r);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"PAM putenv failed!\"}"));
 		return;
 	}
 
@@ -64,6 +68,7 @@ static void verb_login(struct afb_req req)
 		AFB_ERROR("PAM authenticate failed!");
 		afb_req_fail(req, "PAM authenticate failed!", NULL);
 		pam_end(pamh, r);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"PAM authenticate failed!\"}"));
 		return;
 	}
 
@@ -72,6 +77,7 @@ static void verb_login(struct afb_req req)
 		AFB_ERROR("PAM acct_mgmt failed!");
 		afb_req_fail(req, "PAM acct_mgmt failed!", NULL);
 		pam_end(pamh, r);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"PAM acct_mgmt failed!\"}"));
 		return;
 	}
 
@@ -81,6 +87,7 @@ static void verb_login(struct afb_req req)
 	{
 		AFB_ERROR("[login] No user provided by the PAM module!");
 		afb_req_fail(req, "No user provided by the PAM module!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"No user provided by the PAM module!\"}"));
 		return;
 	}
 
@@ -91,6 +98,7 @@ static void verb_login(struct afb_req req)
 	{
 		AFB_ERROR("PAM end failed!");
 		afb_req_fail(req, "PAM end failed!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"PAM end failed!\"}"));
 		return;
 	}
 
@@ -114,6 +122,7 @@ static void verb_logout(struct afb_req req)
 	{
 		AFB_INFO("[logout] device must be provided!");
 		afb_req_fail(req, "device must be provided!", NULL);
+		afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"Device must be provided!\"}"));
 		return;
 	}
 
@@ -135,12 +144,14 @@ static void verb_logout(struct afb_req req)
 		{
 			AFB_INFO("No user was linked to this device!");
 			afb_req_fail(req, "No user was linked to this device!", NULL);
+			afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"No user was linked to this device!\"}"));
 			return;
 		}
 	}
 
 	AFB_INFO("The unplugged device wasn't the user key!");
 	afb_req_fail(req, "The unplugged device wasn't the user key!", NULL);
+	afb_event_broadcast(evt_failed, json_tokener_parse("{\"message\":\"The unplugged device wasn't the user key!\"}"));
 }
 
 static void verb_getuser(struct afb_req req)
@@ -164,6 +175,7 @@ int ll_auth_init()
 	current_device = NULL;
 	evt_login = afb_daemon_make_event("login");
 	evt_logout = afb_daemon_make_event("logout");
+	evt_failed = afb_daemon_make_event("failed");
 
 	if (afb_event_is_valid(evt_login) && afb_event_is_valid(evt_logout))
 		return 0;
