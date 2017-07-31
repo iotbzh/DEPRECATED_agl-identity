@@ -1,3 +1,3 @@
 #!/bin/bash
 
-afb-daemon --port=9001 --token='' --binding=/home/agl/projects/ll-store-binding/build/src/afb-ll-store-binding.so --verbose
+afb-daemon --port=9001 --token='' --binding=$PWD/build/src/afb-ll-store-binding.so --verbose
