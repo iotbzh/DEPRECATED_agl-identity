@@ -232,8 +232,7 @@ static void logout(const char* device)
 	}
 	else
 	{
-		json_object_object_add(result, "message", json_object_new_string(current_device));
-		json_object_object_add(result, "user", json_object_new_string("The unplugged device wasn't the user key!"));
+		json_object_object_add(result, "message", json_object_new_string("The unplugged device wasn't the user key!"));
 		AFB_INFO("The unplugged device wasn't the user key!");
 		afb_event_broadcast(evt_failed, result);
 	}
