@@ -30,6 +30,8 @@
 
     function onopen() {
             document.getElementById("background").style.background  = "lightgray";
+			document.getElementById("main").style.visibility = "visible";
+			callbinder("ll-auth", "getuser", "");
             ws.onevent("*", gotevent);
     }
 
@@ -40,6 +42,11 @@
     function replyok(obj) {
             console.log("replyok:" + JSON.stringify(obj));
             document.getElementById("output").innerHTML = "OK: "+JSON.stringify(obj);
+
+           document.getElementById("usertitle").innerHTML = "A valid user is logged in";
+           document.getElementById("userid").innerHTML = obj.response.user;
+           document.getElementById("userdevice").innerHTML = obj.response.device;
+           document.getElementById("background").style.background  = "lightgreen";
     }
 
     function replyerr(obj) {
@@ -49,8 +56,10 @@
 
     function gotevent(obj) {
         console.log("gotevent:" + JSON.stringify(obj));
-        //document.getElementById("outevt").innerHTML = (evtidx++) +": "+JSON.stringify(obj);
+        document.getElementById("outevt").innerHTML = (evtidx++) +": "+JSON.stringify(obj);
 
+        document.getElementById("question").innerHTML = "";
+        document.getElementById("output").innerHTML = "";
         document.getElementById("message").innerHTML = "";
 
         if (obj.event == "ll-auth/login") {
