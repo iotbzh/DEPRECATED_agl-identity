@@ -72,7 +72,7 @@ int ll_database_binding_init()
 	{
 		if (ret == 0) AFB_ERROR("User not found");
 		else AFB_ERROR("getpwuid_r failed with %d code", ret);
-		return ret ? ret : -1;
+		return -1;
 	}
 	
 	memset(database_file, 0, MAX_PATH);	
@@ -84,14 +84,14 @@ int ll_database_binding_init()
 	if ((ret = db_create(&database, NULL, 0)) != 0)
 	{
 		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
-		return 1;
+		return -1;
 	}
 	
 	if ((ret = database->open(database, NULL, database_file, NULL, DB_BTREE, DB_CREATE, 0664)) != 0)
 	{
 		AFB_ERROR("Failed to open the '%s' database: %s.", database_file, db_strerror(ret));
 		database->close(database, 0);
-		return 1;
+		return -1;
 	}
 	
 	return 0;
