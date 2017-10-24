@@ -40,15 +40,15 @@
 #define APPNAME		"firefox"
 
 // ----- Globals -----
-DB*		database;
-char	database_file[MAX_PATH];
+static DB*		database;
+static char	database_file[MAX_PATH];
 
 // ----- Binding's declarations -----
-int ll_database_binding_init();
-void verb_insert(struct afb_req req);
-void verb_update(struct afb_req req);
-void verb_delete(struct afb_req req);
-void verb_read(struct afb_req req);
+static int ll_database_binding_init();
+static void verb_insert(struct afb_req req);
+static void verb_update(struct afb_req req);
+static void verb_delete(struct afb_req req);
+static void verb_read(struct afb_req req);
 
 // ----- Binding's implementations -----
 
@@ -56,7 +56,7 @@ void verb_read(struct afb_req req);
  * @brief Initialize the binding.
  * @return Exit code, zero if success.
  */
-int ll_database_binding_init()
+static int ll_database_binding_init()
 {
 	struct passwd pwd;
 	struct passwd* result;
@@ -101,7 +101,7 @@ int ll_database_binding_init()
  * @brief Handle the @c read verb.
  * @param[in] req The query.
  */
-void verb_insert(struct afb_req req)
+static void verb_insert(struct afb_req req)
 {
 	DBT key;
 	DBT data;
@@ -165,7 +165,7 @@ void verb_insert(struct afb_req req)
 	free(rkey);
 }
 
-void verb_update(struct afb_req req)
+static void verb_update(struct afb_req req)
 {
 	DBT key;
 	DBT data;
@@ -232,7 +232,7 @@ void verb_update(struct afb_req req)
 	free(rkey);
 }
 
-void verb_delete(struct afb_req req)
+static void verb_delete(struct afb_req req)
 {
 	DBT key;
 	int ret;
@@ -281,7 +281,7 @@ void verb_delete(struct afb_req req)
 	free(rkey);
 }
 
-void verb_read(struct afb_req req)
+static void verb_read(struct afb_req req)
 {
 	DBT key;
 	DBT data;
