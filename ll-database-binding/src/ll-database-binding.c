@@ -98,38 +98,76 @@ static int ll_database_binding_init()
 }
 
 /**
+ * Returns the database key for the 'req'
+ */
+static int get_key(struct afb_req req, DBT *key)
+{
+	char *appid, *data;
+	const char *jkey;
+
+	size_t ljkey, lappid, size;
+
+	struct json_object* args;
+	struct json_object* item;
+
+	/* get the key */
+	args = afb_req_json(req);
+	if (!json_object_object_get_ex(args, "key", &item))
+	{
+		afb_req_fail(req, "no-key", NULL);
+		return -1;
+	}
+	if (!item
+	 || !(jkey = json_object_get_string(item))
+	 || !(ljkey = strlen(jkey)))
+	{
+		afb_req_fail(req, "bad-key", NULL);
+		return -1;
+	}
+
+	/* get the appid */
+	appid = afb_req_get_application_id(req);
+	if (!appid)
+	{
+		afb_req_fail(req, "bad-context", NULL);
+		return -1;
+	}
+
+	/* make the db-key */
+	lappid = strlen(appid);
+	size = lappid + ljkey + 2;
+	data = realloc(appid, size);
+	if (!data)
+	{
+		free(appid);
+		afb_req_fail(req, "out-of-memory", NULL);
+		return -1;
+	}
+	data[lappid] = ':';
+	memcpy(&data[lappid + 1], jkey, ljkey + 1);
+
+	/* return the key */
+	key->data = data;
+	key->size = (uint32_t)size;
+	return 0;
+}
+
+/**
  * @brief Handle the @c read verb.
  * @param[in] req The query.
  */
 static void verb_insert(struct afb_req req)
 {
+	int ret;
 	DBT key;
 	DBT data;
-	int ret;
 
-	char* rkey;
-	const char* tag;
 	const char* value;
 
 	struct json_object* args;
 	struct json_object* item;
 
 	args = afb_req_json(req);
-
-	if (!args)
-	{
-		afb_req_fail(req, "No argument provided.", NULL);
-		return;
-	}
-
-	if (!json_object_object_get_ex(args, "key", &item) || !item) tag = NULL;
-	else tag = json_object_get_string(item);
-
-	if (!tag || !strlen(tag))
-	{
-		afb_req_fail(req, "No tag provided.", NULL);
-		return;
-	}
 
 	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
 	else value = json_object_get_string(item);
@@ -140,20 +178,10 @@ static void verb_insert(struct afb_req req)
 		return;
 	}
 
-	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
-	strcpy(rkey, USERNAME);
-	strcat(rkey, ":");
-	strcat(rkey, APPNAME);
-	strcat(rkey, ":");
-	strcat(rkey, tag);
+	if (get_key(req, &key))
+		return;
 
-	AFB_INFO("insert: key=%s, value=%s", rkey, value);
-
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-
-	key.data = rkey;
-	key.size = (uint32_t)strlen(rkey);
+	AFB_INFO("insert: key=%s, value=%s", (char*)key.data, value);
 
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value);
@@ -162,7 +190,7 @@ static void verb_insert(struct afb_req req)
 		afb_req_success_f(req, NULL, "db success: insertion %s=%s.", (char*)key.data, (char*)data.data);
 	else
 		afb_req_fail_f(req, "Failed to insert datas.", "db fail: insertion : %s=%s - %s", (char*)key.data, (char*)data.data, db_strerror(ret));
-	free(rkey);
+	free(key.data);
 }
 
 static void verb_update(struct afb_req req)
