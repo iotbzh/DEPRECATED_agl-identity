@@ -1,5 +1,5 @@
 ###########################################################################
-# Copyright 2015, 2016, 2017 IoT.bzh
+# Copyright 2017 IoT.bzh
 #
 # author: Loïc Collignon <loic.collignon@iot.bzh>
 #
@@ -9,12 +9,13 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
+# Unless required by applicabfile:///home/agl/projects/identity/hl-identity-binding/conf.d/app-templates/samples.d/CMakeLists.txt.samplele law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ###########################################################################
 
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.6)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/cmake/)
 include(${CMAKE_CURRENT_SOURCE_DIR}/conf.d/cmake/config.cmake)
