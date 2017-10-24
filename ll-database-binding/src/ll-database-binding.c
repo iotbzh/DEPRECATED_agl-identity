@@ -63,10 +63,10 @@ static int ll_database_binding_init()
 	char buf[MAX_PATH];
 	size_t bufsize;
 	int ret;
-	
+
 	bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
 	if (bufsize == -1 || bufsize > MAX_PATH) bufsize = MAX_PATH;
-	
+
 	ret = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
 	if (result == NULL)
 	{
@@ -74,11 +74,11 @@ static int ll_database_binding_init()
 		else AFB_ERROR("getpwuid_r failed with %d code", ret);
 		return -1;
 	}
-	
-	memset(database_file, 0, MAX_PATH);	
+
+	memset(database_file, 0, MAX_PATH);
 	strcat(database_file, result->pw_dir);
 	strcat(database_file, DBFILE);
-	
+
 	AFB_INFO("The database file is '%s'", database_file);
 
 	if ((ret = db_create(&database, NULL, 0)) != 0)
@@ -86,14 +86,14 @@ static int ll_database_binding_init()
 		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
 		return -1;
 	}
-	
+
 	if ((ret = database->open(database, NULL, database_file, NULL, DB_BTREE, DB_CREATE, 0664)) != 0)
 	{
 		AFB_ERROR("Failed to open the '%s' database: %s.", database_file, db_strerror(ret));
 		database->close(database, 0);
 		return -1;
 	}
-	
+
 	return 0;
 }
 
@@ -106,55 +106,55 @@ static void verb_insert(struct afb_req req)
 	DBT key;
 	DBT data;
 	int ret;
-	
+
 	char* rkey;
 	const char* tag;
 	const char* value;
-	
+
 	struct json_object* args;
 	struct json_object* item;
-	
+
 	args = afb_req_json(req);
-	
+
 	if (!args)
 	{
 		afb_req_fail(req, "No argument provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "key", &item) || !item) tag = NULL;
 	else tag = json_object_get_string(item);
-	
+
 	if (!tag || !strlen(tag))
 	{
 		afb_req_fail(req, "No tag provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
 	else value = json_object_get_string(item);
-	
+
 	if (!value || !strlen(value))
 	{
 		afb_req_fail(req, "No value provided.", NULL);
 		return;
 	}
-	
+
 	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
 	strcpy(rkey, USERNAME);
 	strcat(rkey, ":");
 	strcat(rkey, APPNAME);
 	strcat(rkey, ":");
 	strcat(rkey, tag);
-	
+
 	AFB_INFO("insert: key=%s, value=%s", rkey, value);
 
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
-	
+
 	key.data = rkey;
 	key.size = (uint32_t)strlen(rkey);
-	
+
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value);
 
@@ -170,58 +170,58 @@ static void verb_update(struct afb_req req)
 	DBT key;
 	DBT data;
 	int ret;
-	
+
 	char* rkey;
 	const char* tag;
 	const char* value;
-	
+
 	struct json_object* args;
 	struct json_object* item;
-	
+
 	args = afb_req_json(req);
 	// username should be get from identity binding
 	// application should be get from smack
 	// tag should be get using get_json_string(args, "tag");
-	
+
 	if (!args)
 	{
 		afb_req_fail(req, "No argument provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
 	else tag = json_object_get_string(item);
-	
+
 	if (!tag || !strlen(tag))
 	{
 		afb_req_fail(req, "No tag provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
 	else value = json_object_get_string(item);
-	
+
 	if (!value || !strlen(value))
 	{
 		afb_req_fail(req, "No value provided.", NULL);
 		return;
 	}
-	
+
 	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
 	strcpy(rkey, USERNAME);
 	strcat(rkey, ":");
 	strcat(rkey, APPNAME);
 	strcat(rkey, ":");
 	strcat(rkey, tag);
-	
+
 	AFB_INFO("update: key=%s, value=%s", rkey, value);
 
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
-	
+
 	key.data = rkey;
 	key.size = (uint32_t)strlen(rkey);
-	
+
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value);
 
@@ -236,41 +236,41 @@ static void verb_delete(struct afb_req req)
 {
 	DBT key;
 	int ret;
-	
+
 	char* rkey;
 	const char* tag;
-	
+
 	struct json_object* args;
 	struct json_object* item;
-	
+
 	args = afb_req_json(req);
-	
+
 	if (!args)
 	{
 		afb_req_fail(req, "No argument provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
 	else tag = json_object_get_string(item);
-	
+
 	if (!tag || !strlen(tag))
 	{
 		afb_req_fail(req, "No tag provided.", NULL);
 		return;
 	}
-	
+
 	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
 	strcpy(rkey, USERNAME);
 	strcat(rkey, ":");
 	strcat(rkey, APPNAME);
 	strcat(rkey, ":");
 	strcat(rkey, tag);
-	
+
 	AFB_INFO("delete: key=%s", rkey);
 
 	memset(&key, 0, sizeof(key));
-	
+
 	key.data = rkey;
 	key.size = (uint32_t)strlen(rkey);
 
@@ -286,49 +286,49 @@ static void verb_read(struct afb_req req)
 	DBT key;
 	DBT data;
 	int ret;
-	
+
 	char* rkey;
 	const char* tag;
 	char value[4096];
-	
+
 	struct json_object* args;
 	struct json_object* item;
 	struct json_object* result;
 	struct json_object* val;
-	
+
 	args = afb_req_json(req);
-	
+
 	if (!args)
 	{
 		afb_req_fail(req, "No argument provided.", NULL);
 		return;
 	}
-	
+
 	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
 	else tag = json_object_get_string(item);
-	
+
 	if (!tag || !strlen(tag))
 	{
 		afb_req_fail(req, "No tag provided.", NULL);
 		return;
 	}
-	
+
 	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
 	strcpy(rkey, USERNAME);
 	strcat(rkey, ":");
 	strcat(rkey, APPNAME);
 	strcat(rkey, ":");
 	strcat(rkey, tag);
-	
+
 	AFB_INFO("update: key=%s, value=%s", rkey, value);
 
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
 	memset(&value, 0, 4096);
-	
+
 	key.data = rkey;
 	key.size = (uint32_t)strlen(rkey);
-	
+
 	data.data = value;
 	data.ulen = 4096;
 	data.flags = DB_DBT_USERMEM;
@@ -338,7 +338,7 @@ static void verb_read(struct afb_req req)
 		result = json_object_new_object();
 		val = json_tokener_parse((char*)data.data);
 		json_object_object_add(result, "value", val ? val : json_object_new_string((char*)data.data));
-		
+
 		afb_req_success_f(req, result, "db success: read %s=%s.", (char*)key.data, (char*)data.data);
 	}
 	else
