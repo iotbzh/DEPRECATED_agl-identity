@@ -153,10 +153,10 @@ void verb_insert(struct afb_req req)
 	memset(&data, 0, sizeof(data));
 	
 	key.data = rkey;
-	key.size = strlen(rkey);
+	key.size = (uint32_t)strlen(rkey);
 	
 	data.data = (void*)value;
-	data.size = strlen(value);
+	data.size = (uint32_t)strlen(value);
 
 	if ((ret = database->put(database, NULL, &key, &data, DB_NOOVERWRITE)) == 0)
 		afb_req_success_f(req, NULL, "db success: insertion %s=%s.", (char*)key.data, (char*)data.data);
@@ -220,10 +220,10 @@ void verb_update(struct afb_req req)
 	memset(&data, 0, sizeof(data));
 	
 	key.data = rkey;
-	key.size = strlen(rkey);
+	key.size = (uint32_t)strlen(rkey);
 	
 	data.data = (void*)value;
-	data.size = strlen(value);
+	data.size = (uint32_t)strlen(value);
 
 	if ((ret = database->put(database, NULL, &key, &data, 0)) == 0)
 		afb_req_success_f(req, NULL, "db success: update %s=%s.", (char*)key.data, (char*)data.data);
@@ -272,7 +272,7 @@ void verb_delete(struct afb_req req)
 	memset(&key, 0, sizeof(key));
 	
 	key.data = rkey;
-	key.size = strlen(rkey);
+	key.size = (uint32_t)strlen(rkey);
 
 	if ((ret = database->del(database, NULL, &key, 0)) == 0)
 		afb_req_success_f(req, NULL, "db success: delete %s.", (char *)key.data);
@@ -283,7 +283,6 @@ void verb_delete(struct afb_req req)
 
 void verb_read(struct afb_req req)
 {
-	DB* dbp;
 	DBT key;
 	DBT data;
 	int ret;
@@ -328,7 +327,7 @@ void verb_read(struct afb_req req)
 	memset(&value, 0, 4096);
 	
 	key.data = rkey;
-	key.size = strlen(rkey);
+	key.size = (uint32_t)strlen(rkey);
 	
 	data.data = value;
 	data.ulen = 4096;
@@ -348,8 +347,10 @@ void verb_read(struct afb_req req)
 }
 
 // ----- Binding's configuration -----
+/*
 static const struct afb_auth ll_database_binding_auths[] = {
 };
+*/
 
 static const afb_verb_v2 ll_database_binding_verbs[]= {
 		REGISTER_VERB(insert,	NULL, NULL, AFB_SESSION_NONE_V2),
