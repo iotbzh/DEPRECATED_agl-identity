@@ -199,32 +199,12 @@ static void verb_update(struct afb_req req)
 	DBT data;
 	int ret;
 
-	char* rkey;
-	const char* tag;
 	const char* value;
 
 	struct json_object* args;
 	struct json_object* item;
 
 	args = afb_req_json(req);
-	// username should be get from identity binding
-	// application should be get from smack
-	// tag should be get using get_json_string(args, "tag");
-
-	if (!args)
-	{
-		afb_req_fail(req, "No argument provided.", NULL);
-		return;
-	}
-
-	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
-	else tag = json_object_get_string(item);
-
-	if (!tag || !strlen(tag))
-	{
-		afb_req_fail(req, "No tag provided.", NULL);
-		return;
-	}
 
 	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
 	else value = json_object_get_string(item);
@@ -235,20 +215,10 @@ static void verb_update(struct afb_req req)
 		return;
 	}
 
-	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
-	strcpy(rkey, USERNAME);
-	strcat(rkey, ":");
-	strcat(rkey, APPNAME);
-	strcat(rkey, ":");
-	strcat(rkey, tag);
+	if (get_key(req, &key))
+		return;
 
-	AFB_INFO("update: key=%s, value=%s", rkey, value);
-
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-
-	key.data = rkey;
-	key.size = (uint32_t)strlen(rkey);
+	AFB_INFO("update: key=%s, value=%s", (char*)key.data, value);
 
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value);
@@ -257,7 +227,8 @@ static void verb_update(struct afb_req req)
 		afb_req_success_f(req, NULL, "db success: update %s=%s.", (char*)key.data, (char*)data.data);
 	else
 		afb_req_fail_f(req, "Failed to update datas.", "db fail: update %s=%s - %s", (char*)key.data, (char*)data.data, db_strerror(ret));
-	free(rkey);
+
+	free(key.data);
 }
 
 static void verb_delete(struct afb_req req)
@@ -265,48 +236,17 @@ static void verb_delete(struct afb_req req)
 	DBT key;
 	int ret;
 
-	char* rkey;
-	const char* tag;
-
-	struct json_object* args;
-	struct json_object* item;
-
-	args = afb_req_json(req);
-
-	if (!args)
-	{
-		afb_req_fail(req, "No argument provided.", NULL);
+	if (get_key(req, &key))
 		return;
-	}
 
-	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
-	else tag = json_object_get_string(item);
-
-	if (!tag || !strlen(tag))
-	{
-		afb_req_fail(req, "No tag provided.", NULL);
-		return;
-	}
-
-	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
-	strcpy(rkey, USERNAME);
-	strcat(rkey, ":");
-	strcat(rkey, APPNAME);
-	strcat(rkey, ":");
-	strcat(rkey, tag);
-
-	AFB_INFO("delete: key=%s", rkey);
-
-	memset(&key, 0, sizeof(key));
-
-	key.data = rkey;
-	key.size = (uint32_t)strlen(rkey);
+	AFB_INFO("delete: key=%s", (char*)key.data);
 
 	if ((ret = database->del(database, NULL, &key, 0)) == 0)
 		afb_req_success_f(req, NULL, "db success: delete %s.", (char *)key.data);
 	else
 		afb_req_fail_f(req, "Failed to delete datas.", "db fail: delete %s - %s", (char*)key.data, db_strerror(ret));
-	free(rkey);
+
+	free(key.data);
 }
 
 static void verb_read(struct afb_req req)
@@ -315,47 +255,16 @@ static void verb_read(struct afb_req req)
 	DBT data;
 	int ret;
 
-	char* rkey;
-	const char* tag;
 	char value[4096];
 
-	struct json_object* args;
-	struct json_object* item;
 	struct json_object* result;
 	struct json_object* val;
 
-	args = afb_req_json(req);
 
-	if (!args)
-	{
-		afb_req_fail(req, "No argument provided.", NULL);
+	if (get_key(req, &key))
 		return;
-	}
 
-	if (!json_object_object_get_ex(args, "tag", &item) || !item) tag = NULL;
-	else tag = json_object_get_string(item);
-
-	if (!tag || !strlen(tag))
-	{
-		afb_req_fail(req, "No tag provided.", NULL);
-		return;
-	}
-
-	rkey = malloc(strlen(USERNAME) + strlen(APPNAME) + strlen(tag) + 3);
-	strcpy(rkey, USERNAME);
-	strcat(rkey, ":");
-	strcat(rkey, APPNAME);
-	strcat(rkey, ":");
-	strcat(rkey, tag);
-
-	AFB_INFO("update: key=%s, value=%s", rkey, value);
-
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	memset(&value, 0, 4096);
-
-	key.data = rkey;
-	key.size = (uint32_t)strlen(rkey);
+	AFB_INFO("read: key=%s", (char*)key.data);
 
 	data.data = value;
 	data.ulen = 4096;
@@ -371,7 +280,8 @@ static void verb_read(struct afb_req req)
 	}
 	else
 		afb_req_fail_f(req, "Failed to read datas.", "db fail: read %s - %s", (char*)key.data, db_strerror(ret));
-	free(rkey);
+
+	free(key.data);
 }
 
 // ----- Binding's configuration -----
