@@ -374,8 +374,8 @@ const struct afb_binding_v2 afbBindingV2 = {
 		.api = "ll-auth",
 		.specification = NULL,
 		.verbs = _ll_auth_binding_verbs,
-		.preinit = ll_auth_init,
-		.init = NULL,
+		.preinit = NULL,
+		.init = ll_auth_init,
 		.onevent = NULL,
 		.noconcurrency = 0
 };

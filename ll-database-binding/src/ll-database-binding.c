@@ -31,13 +31,17 @@
 
 #include "utils.h"
 
+#ifndef MAX_PATH
+#define MAX_PATH 1024
+#endif
+
 #define DBFILE		"/ll-database-binding.db"
 #define USERNAME	"agl"
 #define APPNAME		"firefox"
 
 // ----- Globals -----
 DB*		database;
-char*	database_file;
+char	database_file[MAX_PATH];
 
 // ----- Binding's declarations -----
 int ll_database_binding_init();
@@ -60,48 +64,30 @@ int ll_database_binding_init()
 {
 	struct passwd pwd;
 	struct passwd* result;
-	char* buf;
+	char buf[MAX_PATH];
 	size_t bufsize;
 	int ret;
 	
 	bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-	if (bufsize == -1) bufsize = 16384;
-	buf = malloc(bufsize);
-	if (buf == NULL)
-	{
-		AFB_ERROR("Allocation failed!");
-		return 1;
-	}
+	if (bufsize == -1 || bufsize > MAX_PATH) bufsize = MAX_PATH;
 	
 	ret = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
 	if (result == NULL)
 	{
-		free(buf);
 		if (ret == 0) AFB_ERROR("User not found");
 		else AFB_ERROR("getpwuid_r failed with %d code", ret);
-		return 1;
+		return ret ? ret : -1;
 	}
 	
-	bufsize = strlen(result->pw_dir) + strlen(DBFILE) + 1;
-	database_file = malloc(bufsize);
-	if (database_file == NULL)
-	{
-		free(buf);
-		AFB_ERROR("Allocation failed!");
-		return 1;
-	}
-	
-	memset(database_file, 0, bufsize);	
+	memset(database_file, 0, MAX_PATH);	
 	strcat(database_file, result->pw_dir);
 	strcat(database_file, DBFILE);
-	free(buf);
 	
 	AFB_INFO("The database file is '%s'", database_file);
 
 	if ((ret = db_create(&database, NULL, 0)) != 0)
 	{
 		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
-		free(database_file);
 		return 1;
 	}
 	
@@ -109,7 +95,6 @@ int ll_database_binding_init()
 	{
 		AFB_ERROR("Failed to open the '%s' database: %s.", database_file, db_strerror(ret));
 		database->close(database, 0);
-		free(database_file);
 		return 1;
 	}
 	
