@@ -43,8 +43,6 @@
 # endif
 # define TO_STRING_FLAGS (JSON_C_TO_STRING_PLAIN | JSON_C_TO_STRING_NOSLASHESCAPE)
 #endif
-#define USERNAME	"agl"
-#define APPNAME		"firefox"
 
 // ----- Globals -----
 static DB*		database;
