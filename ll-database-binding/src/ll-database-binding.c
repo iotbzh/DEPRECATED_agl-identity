@@ -35,7 +35,7 @@
 #define MAX_PATH 1024
 #endif
 
-#define DBFILE		"/ll-database-binding.db"
+#define DBFILE		"ll-database-binding.db"
 
 #if !defined(TO_STRING_FLAGS)
 # if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
@@ -45,8 +45,7 @@
 #endif
 
 // ----- Globals -----
-static DB*		database;
-static char	database_file[MAX_PATH];
+static DB *database;
 
 // ----- Binding's declarations -----
 static int ll_database_binding_init();
@@ -58,33 +57,52 @@ static void verb_read(struct afb_req req);
 // ----- Binding's implementations -----
 
 /**
+ * @brief Get the path to the database
+ */
+static int get_database_path(char *buffer, size_t size)
+{
+	static const char dbfile[] = DBFILE;
+
+	char *home, *config;
+	int rc;
+
+	config = secure_getenv("XDG_CONFIG_HOME");
+	if (config)
+		rc = snprintf(buffer, size, "%s/.config/%s", home, dbfile);
+	else
+	{
+		home = secure_getenv("HOME");
+		if (home)
+			rc = snprintf(buffer, size, "%s/.config/%s", home, dbfile);
+		else
+		{
+			struct passwd *pwd = getpwuid(getuid());
+			if (pwd)
+				rc = snprintf(buffer, size, "%s/.config/%s", result->pw_dir, dbfile);
+			else
+				rc = snprintf(buffer, size, "/home/%d/.config/%s", (int)getuid(), dbfile);
+		}
+	}
+	return rc;
+}
+
+/**
  * @brief Initialize the binding.
  * @return Exit code, zero if success.
  */
 static int ll_database_binding_init()
 {
-	struct passwd pwd;
-	struct passwd* result;
-	char buf[MAX_PATH];
-	size_t bufsize;
+	char path[MAX_PATH];
 	int ret;
 
-	bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-	if (bufsize == -1 || bufsize > MAX_PATH) bufsize = MAX_PATH;
-
-	ret = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
-	if (result == NULL)
+	ret = get_database_path(path, sizeof path);
+	if (ret < 0 || (int)ret >=  (int)(sizeof path))
 	{
-		if (ret == 0) AFB_ERROR("User not found");
-		else AFB_ERROR("getpwuid_r failed with %d code", ret);
+		AFB_ERROR("Can't compute the database filename");
 		return -1;
 	}
 
-	memset(database_file, 0, MAX_PATH);
-	strcat(database_file, result->pw_dir);
-	strcat(database_file, DBFILE);
-
-	AFB_INFO("The database file is '%s'", database_file);
+	AFB_INFO("opening database %s", path);
 
 	if ((ret = db_create(&database, NULL, 0)) != 0)
 	{
@@ -92,9 +110,9 @@ static int ll_database_binding_init()
 		return -1;
 	}
 
-	if ((ret = database->open(database, NULL, database_file, NULL, DB_BTREE, DB_CREATE, 0664)) != 0)
+	if ((ret = database->open(database, NULL, path, NULL, DB_BTREE, DB_CREATE, 0664)) != 0)
 	{
-		AFB_ERROR("Failed to open the '%s' database: %s.", database_file, db_strerror(ret));
+		AFB_ERROR("Failed to open the '%s' database: %s.", path, db_strerror(ret));
 		database->close(database, 0);
 		return -1;
 	}
