@@ -36,6 +36,13 @@
 #endif
 
 #define DBFILE		"/ll-database-binding.db"
+
+#if !defined(TO_STRING_FLAGS)
+# if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
+#  define JSON_C_TO_STRING_NOSLASHESCAPE (1<<4)
+# endif
+# define TO_STRING_FLAGS (JSON_C_TO_STRING_PLAIN | JSON_C_TO_STRING_NOSLASHESCAPE)
+#endif
 #define USERNAME	"agl"
 #define APPNAME		"firefox"
 
@@ -152,11 +159,7 @@ static int get_key(struct afb_req req, DBT *key)
 	return 0;
 }
 
-/**
- * @brief Handle the @c read verb.
- * @param[in] req The query.
- */
-static void verb_insert(struct afb_req req)
+static void put(struct afb_req req, int replace)
 {
 	int ret;
 	DBT key;
@@ -169,66 +172,46 @@ static void verb_insert(struct afb_req req)
 
 	args = afb_req_json(req);
 
-	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
-	else value = json_object_get_string(item);
-
-	if (!value || !strlen(value))
+	if (!json_object_object_get_ex(args, "value", &item))
 	{
-		afb_req_fail(req, "No value provided.", NULL);
+		afb_req_fail(req, "no-value", NULL);
+		return;
+	}
+
+	value = json_object_to_json_string_ext(item, TO_STRING_FLAGS);
+	if (!value)
+	{
+		afb_req_fail(req, "out-of-memory", NULL);
 		return;
 	}
 
 	if (get_key(req, &key))
 		return;
 
-	AFB_INFO("insert: key=%s, value=%s", (char*)key.data, value);
+	AFB_INFO("put: key=%s, value=%s", (char*)key.data, value);
 
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value);
 
-	if ((ret = database->put(database, NULL, &key, &data, DB_NOOVERWRITE)) == 0)
-		afb_req_success_f(req, NULL, "db success: insertion %s=%s.", (char*)key.data, (char*)data.data);
+	ret = database->put(database, NULL, &key, &data, replace ? 0 : DB_NOOVERWRITE);
+	if (ret == 0)
+		afb_req_success(req, NULL, NULL);
 	else
-		afb_req_fail_f(req, "Failed to insert datas.", "db fail: insertion : %s=%s - %s", (char*)key.data, (char*)data.data, db_strerror(ret));
+	{
+		AFB_ERROR("can't %s key %s with %s", replace ? "replace" : "insert", (char*)key.data, (char*)data.data);
+		afb_req_fail_f(req, "failed", "%s", db_strerror(ret));
+	}
 	free(key.data);
+}
+
+static void verb_insert(struct afb_req req)
+{
+	put(req, 0);
 }
 
 static void verb_update(struct afb_req req)
 {
-	DBT key;
-	DBT data;
-	int ret;
-
-	const char* value;
-
-	struct json_object* args;
-	struct json_object* item;
-
-	args = afb_req_json(req);
-
-	if (!json_object_object_get_ex(args, "value", &item) || !item) value = NULL;
-	else value = json_object_get_string(item);
-
-	if (!value || !strlen(value))
-	{
-		afb_req_fail(req, "No value provided.", NULL);
-		return;
-	}
-
-	if (get_key(req, &key))
-		return;
-
-	AFB_INFO("update: key=%s, value=%s", (char*)key.data, value);
-
-	data.data = (void*)value;
-	data.size = (uint32_t)strlen(value);
-
-	if ((ret = database->put(database, NULL, &key, &data, 0)) == 0)
-		afb_req_success_f(req, NULL, "db success: update %s=%s.", (char*)key.data, (char*)data.data);
-	else
-		afb_req_fail_f(req, "Failed to update datas.", "db fail: update %s=%s - %s", (char*)key.data, (char*)data.data, db_strerror(ret));
-
-	free(key.data);
+	put(req, 1);
 }
 
 static void verb_delete(struct afb_req req)
