@@ -45,10 +45,6 @@ char	database_file[MAX_PATH];
 
 // ----- Binding's declarations -----
 int ll_database_binding_init();
-void verb_read(struct afb_req req);
-void verb_update(struct afb_req req);
-void verb_delete(struct afb_req req);
-
 void verb_insert(struct afb_req req);
 void verb_update(struct afb_req req);
 void verb_delete(struct afb_req req);
