@@ -320,7 +320,7 @@ static void verb_getuser(struct afb_req req)
  */
 static inline int ll_auth_init_cleanup(const char* error, int retcode)
 {
-	AFB_ERROR_V2("%s", error);
+	AFB_ERROR("%s", error);
 	free_string(&current_user);
 	free_string(&current_device);
 	
