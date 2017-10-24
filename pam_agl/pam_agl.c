@@ -60,19 +60,6 @@ char* get_file_content(const char* path)
 	return buffer;
 }
 
-void pam_putenv_ex(pam_handle_t* pamh, const char* name, const char* value)
-{
-	char result[4096];
-	strcpy(result, name);
-
-	int offset = strlen(name);
-	result[offset] = '=';
-
-	strcpy(result + offset + 1, value);
-
-	pam_putenv(pamh, result);
-}
-
 int read_device(const char* device, char** idkey)
 {
 	int fd;
