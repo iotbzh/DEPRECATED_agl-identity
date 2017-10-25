@@ -452,7 +452,7 @@ static const afb_verb_v2 ll_database_binding_verbs[]= {
 };
 
 const struct afb_binding_v2 afbBindingV2 = {
-	.api = "lludb", /* low-level user database */
+	.api = "ll-database",
 	.specification = NULL,
 	.verbs = ll_database_binding_verbs,
 	.preinit = NULL,
