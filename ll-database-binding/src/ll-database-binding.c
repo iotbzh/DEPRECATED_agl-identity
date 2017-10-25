@@ -72,11 +72,12 @@ static int get_database_path(char *buffer, size_t size)
 			rc = snprintf(buffer, size, "%s/.config/%s", home, dbfile);
 		else
 		{
-			struct passwd *pwd = getpwuid(getuid());
+			uid_t uid = getuid();
+			struct passwd *pwd = getpwuid(uid);
 			if (pwd)
 				rc = snprintf(buffer, size, "%s/.config/%s", pwd->pw_dir, dbfile);
 			else
-				rc = snprintf(buffer, size, "/home/%d/.config/%s", (int)getuid(), dbfile);
+				rc = snprintf(buffer, size, "/home/%d/.config/%s", (int)uid, dbfile);
 		}
 	}
 	return rc;
