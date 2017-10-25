@@ -104,13 +104,15 @@ static int ll_database_binding_init()
 
 	AFB_INFO("opening database %s", path);
 
-	if ((ret = db_create(&database, NULL, 0)) != 0)
+	ret = db_create(&database, NULL, 0);
+	if (ret != 0)
 	{
 		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
 		return -1;
 	}
 
-	if ((ret = database->open(database, NULL, path, NULL, DB_BTREE, DB_CREATE, 0664)) != 0)
+	ret = database->open(database, NULL, path, NULL, DB_BTREE, DB_CREATE, 0664);
+	if (ret != 0)
 	{
 		AFB_ERROR("Failed to open the '%s' database: %s.", path, db_strerror(ret));
 		database->close(database, 0);
@@ -211,7 +213,7 @@ static void put(struct afb_req req, int replace)
 	AFB_INFO("put: key=%s, value=%s", (char*)key.data, value);
 
 	data.data = (void*)value;
-	data.size = (uint32_t)strlen(value);
+	data.size = (uint32_t)strlen(value) + 1; /* includes the tailing null */
 
 	ret = database->put(database, NULL, &key, &data, replace ? 0 : DB_NOOVERWRITE);
 	if (ret == 0)
@@ -273,7 +275,8 @@ static void verb_read(struct afb_req req)
 	data.ulen = 4096;
 	data.flags = DB_DBT_USERMEM;
 
-	if ((ret = database->get(database, NULL, &key, &data, 0)) == 0)
+	ret = database->get(database, NULL, &key, &data, 0);
+	if (ret == 0)
 	{
 		result = json_object_new_object();
 		val = json_tokener_parse((char*)data.data);
