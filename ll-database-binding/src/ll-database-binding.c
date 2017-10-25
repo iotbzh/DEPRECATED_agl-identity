@@ -176,6 +176,7 @@ static int get_key(struct afb_req req, DBT *key)
 	memcpy(&data[lappid + 1], jkey, ljkey + 1);
 
 	/* return the key */
+	memset(key, 0, sizeof *key);
 	key->data = data;
 	key->size = (uint32_t)size;
 	return 0;
@@ -212,6 +213,7 @@ static void put(struct afb_req req, int replace)
 
 	AFB_INFO("put: key=%s, value=%s", (char*)key.data, value);
 
+	memset(&data, 0, sizeof data);
 	data.data = (void*)value;
 	data.size = (uint32_t)strlen(value) + 1; /* includes the tailing null */
 
@@ -271,6 +273,7 @@ static void verb_read(struct afb_req req)
 
 	AFB_INFO("read: key=%s", (char*)key.data);
 
+	memset(&data, 0, sizeof data);
 	data.data = value;
 	data.ulen = 4096;
 	data.flags = DB_DBT_USERMEM;
