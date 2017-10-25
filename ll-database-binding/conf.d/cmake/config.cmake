@@ -18,8 +18,8 @@
 
 # Project Info
 # ------------------
-set(PROJECT_NAME ll-database-binding)
-set(PROJECT_VERSION "0.0")
+set(PROJECT_NAME ll-database)
+set(PROJECT_VERSION "0.1")
 set(PROJECT_PRETTY_NAME "Low Level Database Binding")
 set(PROJECT_DESCRIPTION "")
 set(PROJECT_URL "")
@@ -43,10 +43,6 @@ set(PROJECT_APP_TEMPLATES_DIR "../conf.d/app-templates")
 # Which directories inspect to find CMakeLists.txt target files
 # set(PROJECT_SRC_DIR_PATTERN "*")
 
-# Compilation Mode (DEBUG, RELEASE)
-# ----------------------------------
-set(CMAKE_BUILD_TYPE "DEBUG")
-
 # Kernel selection if needed. You can choose between a
 # mandatory version to impose a minimal version.
 # Or check Kernel minimal version and just print a Warning
@@ -69,9 +65,7 @@ set (gcc_minimal_version 4.9)
 # -----------------------------
 set (PKG_REQUIRED_LIST
 	json-c
-	libsystemd>=222
 	afb-daemon
-	libmicrohttpd>=0.9.55
 )
 
 # Prefix path where will be installed the files
@@ -150,14 +144,14 @@ set(LD_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib64 ${CMAKE_INSTALL_PREFIX}/lib)
 #	content.src designates the relative path of the binary.
 #	For such application, only security setup is made.
 #
-set(WIDGET_TYPE MimeType_Not_Set)
+set(WIDGET_TYPE application/vnd.agl.service)
 
 # Mandatory Widget entry point file of the main unit
 # --------------------------------------------------------------
 # This is the file that will be executed, loaded,
 # at launch time by the application framework.
 #
-set(WIDGET_ENTRY_POINT EntryPoint_Path_Not_Set)
+set(WIDGET_ENTRY_POINT irrelevant)
 
 # Optional dependencies order
 # ---------------------------
