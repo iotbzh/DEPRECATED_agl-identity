@@ -26,12 +26,9 @@
 #include <limits.h>
 
 #include <json-c/json.h>
-#include <db.h>
 
 #define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
-
-#define DBFILE		"ll-database-binding.db"
 
 #if !defined(TO_STRING_FLAGS)
 # if !defined(JSON_C_TO_STRING_NOSLASHESCAPE)
@@ -40,15 +37,219 @@
 # define TO_STRING_FLAGS (JSON_C_TO_STRING_PLAIN | JSON_C_TO_STRING_NOSLASHESCAPE)
 #endif
 
-// ----- Globals -----
+#if defined(USE_BERKELEY_DB)
+#  undef USE_BERKELEY_DB
+#endif
+
+#if defined(USE_GDBM)
+#  undef USE_GDBM
+#  define USE_GDBM        1
+#  define USE_BERKELEY_DB 0
+#else
+#  define USE_GDBM        0
+#  define USE_BERKELEY_DB 1
+#endif
+
+// ----- Berkeley database -----
+#if USE_BERKELEY_DB
+
+#include <db.h>
+
+#define DBFILE	"ll-database-binding.db"
+#define DATA	DBT
+#define DATA_SET(k,d,s)  do{memset((k),0,sizeof*(k));(k)->data=(void*)d;(k)->size=(uint32_t)s;}while(0)
+#define DATA_PTR(k)      ((void*)((k).data))
+#define DATA_STR(k)      ((char*)((k).data))
+#define DATA_SZ(k)       ((size_t)((k).size))
+
 static DB *database;
 
-// ----- Binding's declarations -----
-static int ll_database_binding_init();
-static void verb_insert(struct afb_req req);
-static void verb_update(struct afb_req req);
-static void verb_delete(struct afb_req req);
-static void verb_read(struct afb_req req);
+static int xdb_open(const char *path)
+{
+	int ret;
+
+	ret = db_create(&database, NULL, 0);
+	if (ret != 0)
+	{
+		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
+		return -1;
+	}
+
+	ret = database->open(database, NULL, path, NULL, DB_BTREE, DB_CREATE, 0600);
+	if (ret != 0)
+	{
+		AFB_ERROR("Failed to open the '%s' database: %s.", path, db_strerror(ret));
+		database->close(database, 0);
+		return -1;
+	}
+	return 0;
+}
+
+static void xdb_put(struct afb_req req, DBT *key, DBT *data, int replace)
+{
+	int ret;
+
+	ret = database->put(database, NULL, key, data, replace ? 0 : DB_NOOVERWRITE);
+	if (ret == 0)
+		afb_req_success(req, NULL, NULL);
+	else
+	{
+		AFB_ERROR("can't %s key %s with %s", replace ? "replace" : "insert", DATA_STR(*key), DATA_STR(*data));
+		afb_req_fail_f(req, "failed", "%s", db_strerror(ret));
+	}
+}
+
+static void xdb_delete(struct afb_req req, DBT *key)
+{
+	int ret;
+
+	ret = database->del(database, NULL, key, 0);
+	if (ret == 0)
+		afb_req_success_f(req, NULL, NULL);
+	else
+	{
+		AFB_ERROR("can't delete key %s", DATA_STR(*key));
+		afb_req_fail_f(req, "failed", "%s", db_strerror(ret));
+	}
+
+	free(DATA_PTR(key));
+}
+
+static void verb_read(struct afb_req req)
+{
+	DATA key;
+	DATA data;
+	int ret;
+
+	char value[4096];
+
+	struct json_object* result;
+	struct json_object* val;
+
+
+	if (get_key(req, &key))
+		return;
+
+	AFB_INFO("read: key=%s", DATA_STR(key));
+
+	memset(&data, 0, sizeof data);
+	data.data = value;
+	data.ulen = 4096;
+	data.flags = DB_DBT_USERMEM;
+
+	ret = database->get(database, NULL, &key, &data, 0);
+	if (ret == 0)
+	{
+		result = json_object_new_object();
+		val = json_tokener_parse(DATA_STR(data));
+		json_object_object_add(result, "value", val ? val : json_object_new_string(DATA_STR(data)));
+
+		afb_req_success_f(req, result, "db success: read %s=%s.", DATA_STR(key), DATA_STR(data));
+	}
+	else
+		afb_req_fail_f(req, "Failed to read datas.", "db fail: read %s - %s", DATA_STR(key), db_strerror(ret));
+
+	free(DATA_PTR(key));
+}
+
+#endif
+
+// ----- gdbm database -----
+#if USE_GDBM
+
+#include <errno.h>
+#include <gdbm.h>
+
+#define DBFILE	"ll-database-binding.dbm"
+#define DATA	datum
+#define DATA_SET(k,d,s)  do{(k)->dptr=(char*)d;(k)->dsize=(int)s;}while(0)
+#define DATA_PTR(k)      ((void*)((k).dptr))
+#define DATA_STR(k)      ((char*)((k).dptr))
+#define DATA_SZ(k)       ((size_t)((k).dsize))
+
+static GDBM_FILE database;
+
+static void onfatal(const char *text)
+{
+	AFB_ERROR("fatal gdbm message: %s", text);
+}
+
+static int xdb_open(const char *path)
+{
+	database = gdbm_open(path, 512, GDBM_WRCREAT|GDBM_SYNC, 0600, onfatal);
+	if (!database)
+	{
+		AFB_ERROR("Fail to open/create database: %s%s%s", gdbm_errlist[gdbm_errno],
+			gdbm_syserr[gdbm_errno] ? ", " : "",
+			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+		return -1;
+		
+	}
+	return 0;
+}
+
+static void xdb_put(struct afb_req req, datum *key, datum *data, int replace)
+{
+	int ret;
+
+	ret = gdbm_store(database, *key, *data, replace ? GDBM_REPLACE : GDBM_INSERT);
+	if (ret == 0)
+		afb_req_success(req, NULL, NULL);
+	else
+	{
+		AFB_ERROR("can't %s key %s with %s: %s%s%s",
+			replace ? "replace" : "insert",
+			DATA_STR(*key),
+			DATA_STR(*data),
+			gdbm_errlist[gdbm_errno],
+			gdbm_syserr[gdbm_errno] ? ", " : "",
+			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+		afb_req_fail_f(req, "failed", "%s", ret > 0 ? "key already exists" : gdbm_errlist[gdbm_errno]);
+	}
+}
+
+static void xdb_delete(struct afb_req req, datum *key)
+{
+	int ret;
+
+	ret = gdbm_delete(database, *key);
+	if (ret == 0)
+		afb_req_success_f(req, NULL, NULL);
+	else
+	{
+		AFB_ERROR("can't delete key %s: %s%s%s",
+			DATA_STR(*key),
+			gdbm_errlist[gdbm_errno],
+			gdbm_syserr[gdbm_errno] ? ", " : "",
+			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+		afb_req_fail_f(req, "failed", "%s", gdbm_errlist[gdbm_errno]);
+	}
+}
+
+static void xdb_get(struct afb_req req, datum *key)
+{
+	struct json_object* obj;
+	datum result;
+
+	result = gdbm_fetch(database, *key);
+	if (result.dptr)
+	{
+		obj = json_object_new_object();
+		json_object_object_add(obj, "value", json_tokener_parse(result.dptr));
+		afb_req_success(req, obj, NULL);
+		free(result.dptr);
+	}
+	else
+	{
+		AFB_ERROR("can't get key %s: %s%s%s",
+			DATA_STR(*key),
+			gdbm_errlist[gdbm_errno],
+			gdbm_syserr[gdbm_errno] ? ", " : "",
+			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+		afb_req_fail_f(req, "failed", "%s", gdbm_errlist[gdbm_errno]);
+	}
+}
+#endif
 
 // ----- Binding's implementations -----
 
@@ -100,29 +301,13 @@ static int ll_database_binding_init()
 	}
 
 	AFB_INFO("opening database %s", path);
-
-	ret = db_create(&database, NULL, 0);
-	if (ret != 0)
-	{
-		AFB_ERROR("Failed to create database: %s.", db_strerror(ret));
-		return -1;
-	}
-
-	ret = database->open(database, NULL, path, NULL, DB_BTREE, DB_CREATE, 0664);
-	if (ret != 0)
-	{
-		AFB_ERROR("Failed to open the '%s' database: %s.", path, db_strerror(ret));
-		database->close(database, 0);
-		return -1;
-	}
-
-	return 0;
+	return xdb_open(path);
 }
 
 /**
  * Returns the database key for the 'req'
  */
-static int get_key(struct afb_req req, DBT *key)
+static int get_key(struct afb_req req, DATA *key)
 {
 	char *appid, *data;
 	const char *jkey;
@@ -173,56 +358,42 @@ static int get_key(struct afb_req req, DBT *key)
 	memcpy(&data[lappid + 1], jkey, ljkey + 1);
 
 	/* return the key */
-	memset(key, 0, sizeof *key);
-	key->data = data;
-	key->size = (uint32_t)size;
+	DATA_SET(key, data, size);
 	return 0;
 }
 
 static void put(struct afb_req req, int replace)
 {
-	int ret;
-	DBT key;
-	DBT data;
+	DATA key;
+	DATA data;
 
 	const char* value;
 
 	struct json_object* args;
 	struct json_object* item;
 
+	/* get the value */
 	args = afb_req_json(req);
-
 	if (!json_object_object_get_ex(args, "value", &item))
 	{
 		afb_req_fail(req, "no-value", NULL);
 		return;
 	}
-
 	value = json_object_to_json_string_ext(item, TO_STRING_FLAGS);
 	if (!value)
 	{
 		afb_req_fail(req, "out-of-memory", NULL);
 		return;
 	}
+	DATA_SET(&data, value, strlen(value) + 1); /* includes the tailing null */
 
+	/* get the key */
 	if (get_key(req, &key))
 		return;
 
-	AFB_INFO("put: key=%s, value=%s", (char*)key.data, value);
-
-	memset(&data, 0, sizeof data);
-	data.data = (void*)value;
-	data.size = (uint32_t)strlen(value) + 1; /* includes the tailing null */
-
-	ret = database->put(database, NULL, &key, &data, replace ? 0 : DB_NOOVERWRITE);
-	if (ret == 0)
-		afb_req_success(req, NULL, NULL);
-	else
-	{
-		AFB_ERROR("can't %s key %s with %s", replace ? "replace" : "insert", (char*)key.data, (char*)data.data);
-		afb_req_fail_f(req, "failed", "%s", db_strerror(ret));
-	}
-	free(key.data);
+	AFB_INFO("put: key=%s, value=%s", DATA_STR(key), DATA_STR(data));
+	xdb_put(req, &key, &data, replace);
+	free(DATA_PTR(key));
 }
 
 static void verb_insert(struct afb_req req)
@@ -237,57 +408,26 @@ static void verb_update(struct afb_req req)
 
 static void verb_delete(struct afb_req req)
 {
-	DBT key;
-	int ret;
+	DATA key;
 
 	if (get_key(req, &key))
 		return;
 
-	AFB_INFO("delete: key=%s", (char*)key.data);
-
-	if ((ret = database->del(database, NULL, &key, 0)) == 0)
-		afb_req_success_f(req, NULL, "db success: delete %s.", (char *)key.data);
-	else
-		afb_req_fail_f(req, "Failed to delete datas.", "db fail: delete %s - %s", (char*)key.data, db_strerror(ret));
-
-	free(key.data);
+	AFB_INFO("delete: key=%s", DATA_STR(key));
+	xdb_delete(req, &key);
+	free(DATA_PTR(key));
 }
 
 static void verb_read(struct afb_req req)
 {
-	DBT key;
-	DBT data;
-	int ret;
-
-	char value[4096];
-
-	struct json_object* result;
-	struct json_object* val;
-
+	DATA key;
 
 	if (get_key(req, &key))
 		return;
 
-	AFB_INFO("read: key=%s", (char*)key.data);
-
-	memset(&data, 0, sizeof data);
-	data.data = value;
-	data.ulen = 4096;
-	data.flags = DB_DBT_USERMEM;
-
-	ret = database->get(database, NULL, &key, &data, 0);
-	if (ret == 0)
-	{
-		result = json_object_new_object();
-		val = json_tokener_parse((char*)data.data);
-		json_object_object_add(result, "value", val ? val : json_object_new_string((char*)data.data));
-
-		afb_req_success_f(req, result, "db success: read %s=%s.", (char*)key.data, (char*)data.data);
-	}
-	else
-		afb_req_fail_f(req, "Failed to read datas.", "db fail: read %s - %s", (char*)key.data, db_strerror(ret));
-
-	free(key.data);
+	AFB_INFO("read: key=%s", DATA_STR(key));
+	xdb_get(req, &key);
+	free(DATA_PTR(key));
 }
 
 // ----- Binding's configuration -----
