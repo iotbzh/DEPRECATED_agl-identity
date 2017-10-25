@@ -23,17 +23,13 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
-#include <linux/limits.h>
+#include <limits.h>
 
 #include <json-c/json.h>
 #include <db.h>
 
 #define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
-
-#ifndef MAX_PATH
-#define MAX_PATH 1024
-#endif
 
 #define DBFILE		"ll-database-binding.db"
 
@@ -92,7 +88,7 @@ static int get_database_path(char *buffer, size_t size)
  */
 static int ll_database_binding_init()
 {
-	char path[MAX_PATH];
+	char path[PATH_MAX];
 	int ret;
 
 	ret = get_database_path(path, sizeof path);
