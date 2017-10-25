@@ -68,7 +68,7 @@ static int get_database_path(char *buffer, size_t size)
 
 	config = secure_getenv("XDG_CONFIG_HOME");
 	if (config)
-		rc = snprintf(buffer, size, "%s/.config/%s", home, dbfile);
+		rc = snprintf(buffer, size, "%s/%s", config, dbfile);
 	else
 	{
 		home = secure_getenv("HOME");
@@ -78,7 +78,7 @@ static int get_database_path(char *buffer, size_t size)
 		{
 			struct passwd *pwd = getpwuid(getuid());
 			if (pwd)
-				rc = snprintf(buffer, size, "%s/.config/%s", result->pw_dir, dbfile);
+				rc = snprintf(buffer, size, "%s/.config/%s", pwd->pw_dir, dbfile);
 			else
 				rc = snprintf(buffer, size, "/home/%d/.config/%s", (int)getuid(), dbfile);
 		}
