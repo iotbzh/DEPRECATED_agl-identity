@@ -2,6 +2,7 @@
  * Copyright 2017 IoT.bzh
  *
  * author: Loïc Collignon <loic.collignon@iot.bzh>
+ * author: Jose Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +24,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <linux/limits.h>
+
 #include <json-c/json.h>
 #include <db.h>
 
 #define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
-
-#include "utils.h"
 
 #ifndef MAX_PATH
 #define MAX_PATH 1024
@@ -299,20 +299,27 @@ static const struct afb_auth ll_database_binding_auths[] = {
 };
 */
 
+#define VERB(name_,auth_,info_,sess_) {\
+	.verb = #name_, \
+	.callback = verb_##name_, \
+	.auth = auth_, \
+	.info = info_, \
+	.session = sess_ }
+
 static const afb_verb_v2 ll_database_binding_verbs[]= {
-		REGISTER_VERB(insert,	NULL, NULL, AFB_SESSION_NONE_V2),
-		REGISTER_VERB(update,	NULL, NULL, AFB_SESSION_NONE_V2),
-		REGISTER_VERB(delete,	NULL, NULL, AFB_SESSION_NONE_V2),
-		REGISTER_VERB(read,		NULL, NULL, AFB_SESSION_NONE_V2),
+	VERB(insert,	NULL, NULL, AFB_SESSION_NONE_V2),
+	VERB(update,	NULL, NULL, AFB_SESSION_NONE_V2),
+	VERB(delete,	NULL, NULL, AFB_SESSION_NONE_V2),
+	VERB(read,	NULL, NULL, AFB_SESSION_NONE_V2),
         { .verb = NULL}
 };
 
 const struct afb_binding_v2 afbBindingV2 = {
-                .api = "ll-database",
-                .specification = NULL,
-                .verbs = ll_database_binding_verbs,
-                .preinit = NULL,
-                .init = ll_database_binding_init,
-                .onevent = NULL,
-                .noconcurrency = 0
+	.api = "ll-database",
+	.specification = NULL,
+	.verbs = ll_database_binding_verbs,
+	.preinit = NULL,
+	.init = ll_database_binding_init,
+	.onevent = NULL,
+	.noconcurrency = 0
 };
