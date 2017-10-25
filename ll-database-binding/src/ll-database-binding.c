@@ -150,6 +150,10 @@ static int get_key(struct afb_req req, DBT *key)
 
 	/* get the appid */
 	appid = afb_req_get_application_id(req);
+#if 1
+	if (!appid)
+		appid = strdup("#UNKNOWN-APP#");
+#endif
 	if (!appid)
 	{
 		afb_req_fail(req, "bad-context", NULL);
