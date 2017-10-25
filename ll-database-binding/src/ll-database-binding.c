@@ -167,6 +167,12 @@ static void verb_read(struct afb_req req)
 #define DATA_STR(k)      ((char*)((k).dptr))
 #define DATA_SZ(k)       ((size_t)((k).dsize))
 
+#if GDBM_VERSION_MAJOR > 1 || (GDBM_VERSION_MAJOR == 1 && GDBM_VERSION_MINOR >= 13)
+# define IFSYS(yes,no)   (gdbm_syserr[gdbm_errno] ? (yes) : (no))
+#else
+# define IFSYS(yes,no)   (no)
+#endif
+
 static GDBM_FILE database;
 
 static void onfatal(const char *text)
@@ -179,9 +185,10 @@ static int xdb_open(const char *path)
 	database = gdbm_open(path, 512, GDBM_WRCREAT|GDBM_SYNC, 0600, onfatal);
 	if (!database)
 	{
-		AFB_ERROR("Fail to open/create database: %s%s%s", gdbm_errlist[gdbm_errno],
-			gdbm_syserr[gdbm_errno] ? ", " : "",
-			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+		AFB_ERROR("Fail to open/create database: %s%s%s",
+			gdbm_errlist[gdbm_errno],
+			IFSYS(", ", ""),
+			IFSYS(strerror(errno), ""));
 		return -1;
 		
 	}
@@ -202,8 +209,8 @@ static void xdb_put(struct afb_req req, datum *key, datum *data, int replace)
 			DATA_STR(*key),
 			DATA_STR(*data),
 			gdbm_errlist[gdbm_errno],
-			gdbm_syserr[gdbm_errno] ? ", " : "",
-			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+			IFSYS(", ", ""),
+			IFSYS(strerror(errno), ""));
 		afb_req_fail_f(req, "failed", "%s", ret > 0 ? "key already exists" : gdbm_errlist[gdbm_errno]);
 	}
 }
@@ -220,8 +227,8 @@ static void xdb_delete(struct afb_req req, datum *key)
 		AFB_ERROR("can't delete key %s: %s%s%s",
 			DATA_STR(*key),
 			gdbm_errlist[gdbm_errno],
-			gdbm_syserr[gdbm_errno] ? ", " : "",
-			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+			IFSYS(", ", ""),
+			IFSYS(strerror(errno), ""));
 		afb_req_fail_f(req, "failed", "%s", gdbm_errlist[gdbm_errno]);
 	}
 }
@@ -244,8 +251,8 @@ static void xdb_get(struct afb_req req, datum *key)
 		AFB_ERROR("can't get key %s: %s%s%s",
 			DATA_STR(*key),
 			gdbm_errlist[gdbm_errno],
-			gdbm_syserr[gdbm_errno] ? ", " : "",
-			gdbm_syserr[gdbm_errno] ? strerror(errno) : "");
+			IFSYS(", ", ""),
+			IFSYS(strerror(errno), ""));
 		afb_req_fail_f(req, "failed", "%s", gdbm_errlist[gdbm_errno]);
 	}
 }
