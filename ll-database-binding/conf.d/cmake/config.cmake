@@ -26,7 +26,7 @@ set(PROJECT_URL "")
 set(PROJECT_ICON "icon.png")
 set(PROJECT_AUTHOR "Collignon, Loïc")
 set(PROJECT_AUTHOR_MAIL "loic.collignon@iot.bzh")
-set(PROJECT_LICENSE "APL2.0")
+set(PROJECT_LICENSE "MIT")
 set(PROJECT_LANGUAGES,"C")
 
 # Where are stored default templates files from submodule or subtree app-templates in your project tree
@@ -127,7 +127,7 @@ set(LD_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib64 ${CMAKE_INSTALL_PREFIX}/lib)
 # Optional location for config.xml.in
 # -----------------------------------
 #set(WIDGET_ICON conf.d/wgt/${PROJECT_ICON} CACHE PATH "Path to the widget icon")
-#set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in CACHE PATH "Path to widget config file template (config.xml.in)")
+set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in CACHE PATH "Path to widget config file template (config.xml.in)")
 
 # Mandatory widget Mimetype specification of the main unit
 # --------------------------------------------------------------------------
