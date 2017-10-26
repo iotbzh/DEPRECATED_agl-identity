@@ -29,37 +29,6 @@ int is_valid_mn(const char* v)
 	return v && v[0] == 'I' && v[1] == 'D' && v[2] == 'K' && v[3] == 'Y';
 }
 
-char* get_file_content(const char* path)
-{
-	char* buffer;
-	long length;
-	FILE* f;
-	
-	buffer = NULL;
-	length = 0;
-	
-	f = fopen(path, "rb");
-	if (f)
-	{
-		fseek(f, 0, SEEK_END);
-		length = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		buffer = malloc(length + 1);
-		if (buffer)
-		{
-			if (fread (buffer, 1, length, f) != length)
-			{
-				free(buffer);
-				buffer = NULL;
-			}
-			else buffer[length] = 0;
-		}
-		fclose (f);
-	}
-	
-	return buffer;
-}
-
 int read_device(const char* device, char** idkey)
 {
 	int fd;
@@ -90,41 +59,35 @@ int read_device(const char* device, char** idkey)
 
 int authenticate(pam_handle_t* pamh, const char* uuid)
 {
-	char* file_content;
 	struct json_object* database;
+	struct json_object* usb;
 	struct json_object* key;
 
-	file_content = get_file_content(DATABASE_FILE);
-	if (!file_content)
-	{
-		printf("[PAM DEBUG] Failed to read database file (%s)\n", DATABASE_FILE);
-		return PAM_SERVICE_ERR;
-	}
-	
-	database = json_tokener_parse(file_content);
+	database = json_object_from_file(DATABASE_FILE);
 	if (!database)
 	{
 		printf("[PAM DEBUG] Failed to parse the database\n");
 		return PAM_SERVICE_ERR;
 	}
 	
-	if (json_object_object_get_ex(database, uuid, &key))
-	{
-		printf("[PAM] Key found!\n");
-		printf("[PAM DEBUG] pam_set_item(\"%s\")\n", uuid);
-		pam_set_item(pamh, PAM_USER, uuid);
+	if (json_object_object_get_ex(database, "usb", &usb))
+	{	
+		if (json_object_object_get_ex(usb, uuid, &key))
+		{
+			printf("[PAM] Key found!\n");
+			printf("[PAM DEBUG] pam_set_item(\"%s\")\n", uuid);
+			pam_set_item(pamh, PAM_USER, uuid);
+				
+			const char* pam_authtok;
+			if (pam_get_item(pamh, PAM_AUTHTOK, (const void**)&pam_authtok) == PAM_SUCCESS && !pam_authtok)
+				pam_set_item(pamh, PAM_AUTHTOK, uuid);
 			
-		const char* pam_authtok;
-		if (pam_get_item(pamh, PAM_AUTHTOK, (const void**)&pam_authtok) == PAM_SUCCESS && !pam_authtok)
-			pam_set_item(pamh, PAM_AUTHTOK, uuid);
-		
-		json_object_put(database);
-		free(file_content);
-		return PAM_SUCCESS;
+			json_object_put(database);
+			return PAM_SUCCESS;
+		}
 	}
 	
 	printf("[PAM] Key not found!\n");
-	free(file_content);
 	if (database) json_object_put(database);
 	return PAM_AUTH_ERR;
 }
