@@ -11,7 +11,7 @@
     <param name="urn:AGL:permission::system:run-by-default" value="required" />
   </feature>
   <feature name="urn:AGL:widget:provided-api">
-     <param name="windowmanager" value="ws" />
+     <param name="ll-database" value="ws" />
   </feature>     
   <feature name="urn:AGL:widget:required-api">
     <param name="lib/afb-ll-database-binding.so" value="local" />
